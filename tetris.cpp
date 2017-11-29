@@ -171,7 +171,7 @@ void Tetris::timerEvent(QTimerEvent *event)
 {
     //block falling
     if(event->timerId()==game_timer)
-        //BlockMove(DOWN);
+        ShapeMove(DOWN);
     //fresh screen
     if(event->timerId()==paint_timer)
         update();
@@ -179,22 +179,24 @@ void Tetris::timerEvent(QTimerEvent *event)
 
 void Tetris::keyPressEvent(QKeyEvent *event)
 {
+    //int t;
+    int new_id;
     switch(event->key())
     {
     case Qt::Key_Up:
-        //BlockMove(UP);
+        ShapeMove(UP);
         break;
     case Qt::Key_Down:
-        //BlockMove(DOWN);
+        ShapeMove(DOWN);
         break;
     case Qt::Key_Left:
-        //BlockMove(LEFT);
+        ShapeMove(LEFT);
         break;
     case Qt::Key_Right:
-        //BlockMove(RIGHT);
+        ShapeMove(RIGHT);
         break;
     case Qt::Key_Space:
-        //BlockMove(SPACE);
+
         break;
     default:
         break;
@@ -210,22 +212,178 @@ void Tetris::ShapeCopy(int shape[4][4], int block_id){
 
 }
 
-void Tetris::UpdateScreen(){
-    for(int i =0; i<4; ++i){
+void Tetris::ShapeCopy(int to[4][4], int from[4][4]){
+    for(int i = 0; i<4; ++i){
         for(int j = 0; j<4; ++j){
-            game_area[shape_pos.pos_i+i][shape_pos.pos_j+j] = cur_block[i][j];
-            colorTable[shape_pos.pos_i+i][shape_pos.pos_j+j] = cur_color;
+            to[i][j] = from[i][j];
         }
     }
 }
-//*************************logic end******************************
 
+void Tetris::CleanShape(){
+    for(int i =0; i<4; ++i){
+        for(int j = 0; j<4; ++j){
+            if(cur_block[i][j] == 1){
+                game_area[shape_pos.pos_i+i][shape_pos.pos_j+j] = 0;// cur_block[i][j];
+                colorTable[shape_pos.pos_i+i][shape_pos.pos_j+j] = iWHITE;//cur_color;
+            }
+        }
+    }
+}
+
+void Tetris::UpdateScreen(){
+    for(int i =0; i<4; ++i){
+        for(int j = 0; j<4; ++j){
+            if(cur_block[i][j] == 1){
+                game_area[shape_pos.pos_i+i][shape_pos.pos_j+j] = cur_block[i][j];
+                colorTable[shape_pos.pos_i+i][shape_pos.pos_j+j] = cur_color;
+            }
+        }
+    }
+}
+
+bool Tetris::isCollison(int fi, int fj){
+    for(int i = 0; i<4; ++i){
+        for(int j = 0; j<4; ++j){
+            if(cur_block[i][j] == 1){
+                if(cur_block[i][j]==1 &&(fi+i<0 || fi+i>19)) return false;
+                if(cur_block[i][j]==1 &&(fj+j<0 || fj+j>11)) return false;
+                if(game_area[fi+i][fj+j] == 2 && cur_block[i][j]==1) return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+void Tetris::ShapeMove(Direction dir){
+    bool myflag = true;
+    switch (dir) {
+    case DOWN:
+        update();
+        myflag = false;
+        if(isCollison(shape_pos.pos_i+1,shape_pos.pos_j)){
+            CleanShape();
+            shape_pos.pos_i++;
+            UpdateScreen();
+        }
+
+        //************judge is touch the bottun or the bottun block
+        for(int i = 0; i<4; ++i){
+            for(int j = 0; j<4; ++j){
+                if(cur_block[i][j] == 1){
+                    if(shape_pos.pos_i+i+1>19 || game_area[shape_pos.pos_i+i+1][shape_pos.pos_j+j] == 2){
+                        myflag = true;
+                        break;
+                    }
+                }
+            }
+            if(myflag) break;
+        }
+        if(myflag){//if touched change the moveing block to the satble bolck on the map
+            for(int i = 0; i<4; ++i){
+                for(int j = 0; j<4; ++j){
+                    if(cur_block[i][j] == 1){
+                        game_area[shape_pos.pos_i+i][shape_pos.pos_j+j] = 2;
+                        colorTable[shape_pos.pos_i+i][shape_pos.pos_j+j] = cur_color;
+                    }
+                }
+            }
+            //************get the new shape and create new nextblock and reset the pos
+            shape_pos.pos_i = 0;
+            shape_pos.pos_j = 3;
+            ShapeCopy(cur_block,next_block);
+            cur_color = next_color;
+
+            int new_id = rand()%7;
+            ShapeCopy(next_block,new_id);
+            next_color = (block_color)new_id;
+
+
+            int i;
+            bool break_flag = false;
+            for(i = 19; i>-1; --i){
+                for(int j = 0; j<12; ++j){
+                    if(game_area[i][j] == 0){
+                        break_flag = true;
+                        break;
+                    }
+                }
+                if(break_flag) break;
+            }
+            if(i<19){
+                for(int k = 19; k>-1; --k){
+                    for(int j = 0; j<12; ++j){
+                        if(game_area[k-1][j] != 1){
+                            game_area[k][j] = game_area[k-1][j];
+                            colorTable[k][j] = colorTable[k-1][j];
+                            //score=i;
+                        }
+                    }
+                }
+                UpdateScreen();
+                score += (19-i)*10;
+            }
+        }
+        for(int j = 0; j<12; ++j){
+            if(game_area[0][j] == 2)
+                GameOver();
+        }
+        //*****************
+        break;
+    case LEFT:
+        if(isCollison(shape_pos.pos_i,shape_pos.pos_j-1)){
+            CleanShape();
+            shape_pos.pos_j--;
+            UpdateScreen();
+        }
+        break;
+    case RIGHT:
+        if(isCollison(shape_pos.pos_i,shape_pos.pos_j+1)){
+            CleanShape();
+            shape_pos.pos_j++;
+            UpdateScreen();
+        }
+        break;
+    case UP:
+        myflag = true;
+        int temp_shape[4][4];
+        for(int i = 0; i<4; ++i){
+            for(int j = 0; j<4; ++j){
+                temp_shape[i][j] = cur_block[3-j][i];
+            }
+        }
+
+        for(int i = 0; i<4; ++i){
+            for(int j = 0; j<4; ++j){
+                if(temp_shape[i][j] == 1)
+                if(game_area[shape_pos.pos_i+i][shape_pos.pos_j] == 2 || shape_pos.pos_i+i<0 || shape_pos.pos_i+i>19 ||
+                        shape_pos.pos_j+j<0 || shape_pos.pos_j+j>11){
+                    myflag = false;
+                    break;
+                }
+
+            }
+            if(myflag == false) break;
+        }
+
+        if(myflag){
+            CleanShape();
+            ShapeCopy(cur_block,temp_shape);
+            UpdateScreen();
+        }
+        break;
+    default:
+        break;
+    }
+}
+//*************************logic end******************************
 void Tetris::StartGame()
 {
     game_timer=startTimer(speed_ms); //start game timer
     paint_timer=startTimer(refresh_ms); //start screen timer
     //creat the first shape
-    int block_id=rand()%7;
+    int block_id= rand()%7;
     ShapeCopy(cur_block, block_id);
     //set the shape color
     cur_color = (block_color)block_id;

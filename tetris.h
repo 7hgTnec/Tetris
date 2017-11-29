@@ -65,7 +65,10 @@ public:
     void ShapeMove(Direction dir);//to define the block move
     void GetNewShape();
     void ShapeCopy(int shape[4][4], int block_id);
+    void ShapeCopy(int to[4][4], int from[4][4]);
     void UpdateScreen();
+    void CleanShape();
+    bool isCollison(int x, int y);
     //logic part
 
 
